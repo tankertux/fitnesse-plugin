@@ -30,17 +30,28 @@ xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   checked="${instance.fitnesseStart==true}">
     
     <j:set var="jdks" value="${app.JDKs}" />
-    <j:if test="${jdks.size() gt 1}">
-    <!-- if there's only one JDK configured, always use that. -->
-    	<f:entry title="Fitnesse JDK"
-             description="JDK to be used for Fitnesse">
-      		<select class="setting-input validated" name="fitnesseJdk" checkUrl="'${rootURL}/defaultJDKCheck?value='+this.value">
-        		<j:forEach var="inst" items="${jdks}">
-          			<f:option selected="${inst.name==instance.fitnesseJdk}" value="${inst.name}">${inst.name}</f:option>
-        		</j:forEach>
-      		</select>
-    	</f:entry>
-  </j:if>
+    <!-- if there's only one JDK configured, always use that. If there are no JDKs, return empty string so that JAVA_HOME will be used by default-->
+	<j:choose>
+		<j:when test="${jdks.size() gt 1}">
+			<f:entry title="Fitnesse JDK" description="JDK to be used for Fitnesse. If no JDKs are installed to Jenkins, JAVA_HOME will be used by default.">
+				<select class="setting-input validated" name="fitnesseJdk" checkUrl="'${rootURL}/defaultJDKCheck?value='+this.value">
+					<j:forEach var="inst" items="${jdks}">
+						<f:option selected="${inst.name==instance.fitnesseJdk}" value="${inst.name}">${inst.name}</f:option>
+					</j:forEach>
+				</select>
+			</f:entry>
+		</j:when>
+		<j:when test="${jdks.size() eq 0}">
+			<f:invisibleEntry title="Fitnesse JDK">
+				<input type="hidden" name="fitnesseJdk" value="" />
+			</f:invisibleEntry>
+		</j:when>
+		<j:otherwise>
+			<f:invisibleEntry title="Fitnesse JDK">
+				<input type="hidden" name="fitnesseJdk" value="${jdks.get(0).getName()}" />
+			</f:invisibleEntry>
+		</j:otherwise>
+	</j:choose>
     
 	  <f:entry title="Java startup options" 
 	  help="/descriptor/hudson.plugins.fitnesse.FitnesseBuilder/help/javaOpts">

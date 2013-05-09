@@ -56,7 +56,7 @@ public class ResultsDetails extends TestResult {
 	}
 
 	@Override
-	public AbstractTestResultAction getTestResultAction() {
+	public AbstractTestResultAction<?> getTestResultAction() {
 		return parentResults.getTestResultAction();
 	}
 	

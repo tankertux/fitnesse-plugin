@@ -1,15 +1,16 @@
 package hudson.plugins.fitnesse;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.Result;
 import hudson.model.FreeStyleProject;
+import hudson.model.Hudson;
+import hudson.model.JDK;
 import hudson.plugins.fitnesse.NativePageCounts.Counts;
-import hudson.tasks.Shell;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
 
 import junit.framework.Assert;
 
@@ -24,6 +25,35 @@ public class HudsonDependentTest extends HudsonTestCase {
 		parent.addChild(child);
 		Assert.assertSame(parent.getOwner(), child.getOwner());
 	}
+	
+	   public void testJavaCmdShouldReferenceFitnesseSpecificJavaHome() throws Exception {
+	      String jdkName = "Fitnesse Java";
+	      File javaHome = File.createTempFile("JavaHome", "");
+	      File binDir = new File(javaHome, "bin");
+	      FitnesseExecutor executor = FitnesseExecutorTest.getExecutorForBuilder(
+	                                       new String[] {FitnesseBuilder.PATH_TO_ROOT, FitnesseBuilder.PATH_TO_JAR, FitnesseBuilder.FITNESSE_PORT, FitnesseBuilder.FITNESSE_JDK},
+	                                       new String[] {FitnesseExecutorTest.getTestResourceFitNesseRoot(), FitnesseExecutorTest.getTestResourceFitnesseJar(), "9876", jdkName});
+	      
+	      EnvVars envVars = new EnvVars();
+	      
+	      FilePath workingDirectory = new FilePath(new File(FitnesseExecutorTest.TMP_DIR));
+	      
+	      JDK fitJdk = new JDK(jdkName, javaHome.getCanonicalPath());
+	      Hudson.getInstance().getJDKs().add(fitJdk);
+	      ArrayList<String> cmd = executor.getJavaCmd(workingDirectory, envVars);
+	      
+	      File expectedJavaCommand = new File(binDir, "java");
+	      Assert.assertEquals(expectedJavaCommand.getCanonicalPath(), 
+	                          cmd.get(0));
+	      Assert.assertEquals("-jar", cmd.get(1));
+	      Assert.assertEquals(FitnesseExecutorTest.getTestResourceFitnesseJar(), cmd.get(2));
+	      Assert.assertEquals("-d", cmd.get(3));
+	      Assert.assertEquals(new File(FitnesseExecutorTest.getTestResourceFitNesseRoot()).getParent(), cmd.get(4));
+	      Assert.assertEquals("-r", cmd.get(5));
+	      Assert.assertEquals("FitNesseRoot", cmd.get(6));
+	      Assert.assertEquals("-p", cmd.get(7));
+	      Assert.assertEquals("9876", cmd.get(8));
+	   }
 
 //	public void testBuildStartingFitnesseWithAbsoluteAndRelativePaths() throws Exception {
 //		FreeStyleProject project = createFreeStyleProject(getName());

@@ -1,12 +1,13 @@
 package hudson.plugins.fitnesse;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.Launcher;
+import hudson.model.BuildListener;
+import hudson.model.ModelObject;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
 import hudson.model.Descriptor;
-import hudson.model.ModelObject;
 import hudson.slaves.EnvironmentVariablesNodeProperty;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
@@ -17,6 +18,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.servlet.ServletException;
 
@@ -55,6 +57,7 @@ public class FitnesseBuilder extends Builder {
 	static final String _HOSTNAME_SLAVE_PROPERTY = "HOST_NAME";
 	
 	private Map<String, String> options;
+   private EnvVars environment;
 
     @DataBoundConstructor
 	public FitnesseBuilder(Map<String, String> options) {
@@ -64,10 +67,23 @@ public class FitnesseBuilder extends Builder {
 
     private String getOption(String key, String valueIfKeyNotFound) {
     	if (options.containsKey(key)) {
-    		String value = options.get(key);
+    		String value = translateEnvVar(options.get(key));
     		if (value!=null && !"".equals(value)) return value; 
     	}
     	return valueIfKeyNotFound;
+    }
+    
+    private String translateEnvVar(String val){
+       String translation = null; 
+       if(null != environment && val != null && val.contains("$")){
+          translation = environment.get(val.replace("$", ""));
+       }
+       return translation==null?val:translation;
+    }
+    
+    //Package private scope: Expose setter to test
+    void setEnvVars(EnvVars ev){
+       this.environment = ev;
     }
     
     /**
@@ -84,7 +100,7 @@ public class FitnesseBuilder extends Builder {
 	public String getFitnesseHost(AbstractBuild<?,?> build) throws InterruptedException, IOException  {
 		if (getFitnesseStart()){
 			EnvironmentVariablesNodeProperty prop = build.getBuiltOn().getNodeProperties().get(EnvironmentVariablesNodeProperty.class);
-		  	if (prop.getEnvVars()!=null && prop.getEnvVars().get(_HOSTNAME_SLAVE_PROPERTY)!=null){
+			if (prop != null && prop.getEnvVars()!=null && prop.getEnvVars().get(_HOSTNAME_SLAVE_PROPERTY)!=null){
 		  		return prop.getEnvVars().get(_HOSTNAME_SLAVE_PROPERTY);
 		  	} else {
 		  		return _LOCALHOST;
@@ -96,7 +112,7 @@ public class FitnesseBuilder extends Builder {
     * referenced in config.jelly
     */
 	 public String getFitnesseJdk() {
-	      return getOption(FITNESSE_JDK, "");
+	      return getOption(FITNESSE_JDK, null);
 	   }    
 	
     /**
@@ -190,20 +206,30 @@ public class FitnesseBuilder extends Builder {
     	return Integer.parseInt(getOption(HTTP_TIMEOUT, 
 			String.valueOf(_URL_READ_TIMEOUT_MILLIS)));
 	}
-
-    /**
+    
+       /**
      * {@link Builder}
      */
     @Override
 	public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) 
     throws IOException, InterruptedException {
+      this.environment = build.getEnvironment(listener);
     	PrintStream logger = listener.getLogger();
-		logger.println(getClass().getName() + ": " + options);
+		logger.println(getClass().getName() + ": " + resolveEnvironmentVars());
+		
 		FitnesseExecutor fitnesseExecutor = new FitnesseExecutor(this);
 		return fitnesseExecutor.execute(build, launcher, logger, build.getEnvironment(listener));
 	}
 
-    /**
+    private Map<String, String> resolveEnvironmentVars() {
+       Map<String, String> translation = new HashMap<String, String>();
+          for(Entry<String, String> entry :options.entrySet()){
+            translation.put(entry.getKey(), translateEnvVar(entry.getValue()));
+         }
+          return translation;
+      }
+
+   /**
      * {@link Builder}
      */
 	@Override
@@ -313,7 +339,9 @@ public class FitnesseBuilder extends Builder {
         /**
          * {@link BuildStepDescriptor}
          */
-        public boolean isApplicable(Class<? extends AbstractProject> aClass) {
+        
+        @SuppressWarnings("rawtypes")
+      public boolean isApplicable(Class<? extends AbstractProject> aClass) {
             // indicates that this builder can be used with all kinds of project types 
             return true;
         }

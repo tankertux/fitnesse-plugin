@@ -7,6 +7,9 @@ import hudson.Launcher.ProcStarter;
 import hudson.Proc;
 import hudson.model.AbstractBuild;
 import hudson.model.Hudson;
+import hudson.plugins.fitnesse.FitnesseBuildAction;
+import hudson.plugins.fitnesse.FitnesseBuilder;
+import hudson.plugins.fitnesse.RunnerWithTimeOut;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -22,6 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.commons.lang.StringUtils;
 
 /**
  *  
@@ -85,9 +90,9 @@ public class FitnesseExecutor {
 		String java = "java"; 
 		if (envVars.containsKey("JAVA_HOME"))
 			java = new File(new File(envVars.get("JAVA_HOME"), "bin"), java).getAbsolutePath();
-		if(!builder.getFitnesseJdk().isEmpty()){
+		if(StringUtils.isNotEmpty(builder.getFitnesseJdk())){
 		   File customJavaHome = Hudson.getInstance().getJDK(builder.getFitnesseJdk()).getBinDir();
-		   java = new File(customJavaHome, java).getAbsolutePath();
+		   java = new File(customJavaHome, "java").getAbsolutePath();
 		}
 		String fitnesseJavaOpts = builder.getFitnesseJavaOpts();
 		String[] java_opts = ("".equals(fitnesseJavaOpts) ? new String[0] : fitnesseJavaOpts.split(" "));

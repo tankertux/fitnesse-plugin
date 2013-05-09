@@ -1,6 +1,15 @@
 package hudson.plugins.fitnesse;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import hudson.EnvVars;
+import hudson.model.AbstractBuild;
+import hudson.model.Node;
+import hudson.slaves.EnvironmentVariablesNodeProperty;
+import hudson.util.DescribableList;
+
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 
 import org.junit.Assert;
@@ -19,7 +28,7 @@ public class FitnesseBuilderTest {
    @Test
    public void getJdkShouldReturnNothingIfNotSpecifiedSoThatTheDefaultJDKIsUsed() {
       HashMap<String, String> options = new HashMap<String, String>();
-      String expectedJavaHome = "";
+      String expectedJavaHome = null;
       FitnesseBuilder builder = new FitnesseBuilder(options);
       
       Assert.assertEquals(expectedJavaHome, builder.getFitnesseJdk());
@@ -27,6 +36,7 @@ public class FitnesseBuilderTest {
    
 	@Test
 	public void getPortShouldReturnLocalPortIfSpecified() {
+	   
 		HashMap<String, String> options = new HashMap<String, String>();
 		options.put(FitnesseBuilder.FITNESSE_PORT_LOCAL, "99");
 		FitnesseBuilder builder = new FitnesseBuilder(options);
@@ -37,6 +47,23 @@ public class FitnesseBuilderTest {
 
 		options.put(FitnesseBuilder.FITNESSE_PORT_REMOTE, "");
 		Assert.assertEquals(99, builder.getFitnessePort());
+	}
+	
+	@Test
+	public void getPortShouldReturnResolvedEnvironmentVariableIfSpecified() {
+	   HashMap<String, String> options = new HashMap<String, String>();
+	   options.put(FitnesseBuilder.FITNESSE_PORT_LOCAL, "$port");
+	   FitnesseBuilder builder = new FitnesseBuilder(options);
+	   EnvVars ev = new EnvVars();
+      ev.put("port", "99");
+      builder.setEnvVars(ev);
+	   Assert.assertEquals(99, builder.getFitnessePort());
+	   
+	   options.put(FitnesseBuilder.FITNESSE_PORT_REMOTE, null);
+	   Assert.assertEquals(99, builder.getFitnessePort());
+	   
+	   options.put(FitnesseBuilder.FITNESSE_PORT_REMOTE, "");
+	   Assert.assertEquals(99, builder.getFitnessePort());
 	}
 	
 	@Test
@@ -53,33 +80,69 @@ public class FitnesseBuilderTest {
 		Assert.assertEquals(999, builder.getFitnessePort());
 	}
 	
-	@Test
-	public void getHostShouldReturnLocalHostIfStartBuildIsTrue() {
+   @Test
+	public void getHostShouldReturnLocalHostIfStartBuildIsTrue() throws InterruptedException, IOException {
 		HashMap<String, String> options = new HashMap<String, String>();
 		options.put(FitnesseBuilder.START_FITNESSE, "True");
 		FitnesseBuilder builder = new FitnesseBuilder(options);
 		
 		Assert.assertTrue(builder.getFitnesseStart());
-//		Assert.assertEquals("localhost", builder.getFitnesseHost());
-//		
-//		options.put(FitnesseBuilder.FITNESSE_HOST, "abracadabra");
-//		Assert.assertEquals("localhost", builder.getFitnesseHost());
+		
+		AbstractBuild<?, ?> build = mockBuildWithEnvVars(null);
+      
+      Assert.assertEquals("localhost", builder.getFitnesseHost(build ));
+		
+		options.put(FitnesseBuilder.FITNESSE_HOST, "abracadabra");
+		Assert.assertEquals("localhost", builder.getFitnesseHost(build));
 	}
+
+   @SuppressWarnings({ "rawtypes", "unchecked" })
+   private AbstractBuild<?, ?> mockBuildWithEnvVars(EnvVars envVars) {
+      AbstractBuild<?, ?> build = mock(AbstractBuild.class);
+		Node mockNode = mock(Node.class);
+		DescribableList nodeProperties = mock(DescribableList.class);
+		EnvironmentVariablesNodeProperty envVarsNodeProperty = mock(EnvironmentVariablesNodeProperty.class);
+		
+		when(envVarsNodeProperty.getEnvVars()).thenReturn(envVars);
+      when(nodeProperties.get(EnvironmentVariablesNodeProperty.class)).thenReturn(envVarsNodeProperty);
+      when(mockNode.getNodeProperties()).thenReturn(nodeProperties);
+      when(build.getBuiltOn()).thenReturn(mockNode);
+      return build;
+   }
 	
 	@Test
-	public void getHostShouldReturnSpecifiedHostIfStartBuildIsFalse() {
+	public void getHostShouldReturnSpecifiedHostIfStartBuildIsFalse() throws InterruptedException, IOException {
 		HashMap<String, String> options = new HashMap<String, String>();
 		options.put(FitnesseBuilder.START_FITNESSE, "False");
 		options.put(FitnesseBuilder.FITNESSE_HOST, "hudson.local");
 		FitnesseBuilder builder = new FitnesseBuilder(options);
 		
-//		Assert.assertFalse(builder.getFitnesseStart());
-//		Assert.assertEquals("hudson.local", builder.getFitnesseHost());
-//		
-//		options.put(FitnesseBuilder.FITNESSE_HOST, "abracadabra");
-//		Assert.assertEquals("abracadabra", builder.getFitnesseHost());
+		AbstractBuild<?, ?> build = mockBuildWithEnvVars(null);
+		
+		Assert.assertFalse(builder.getFitnesseStart());
+		Assert.assertEquals("hudson.local", builder.getFitnesseHost(build));
+		
+		options.put(FitnesseBuilder.FITNESSE_HOST, "abracadabra");
+		Assert.assertEquals("abracadabra", builder.getFitnesseHost(build));
 	}
 	
+	@Test
+	public void getHostShouldResolveEnvironmentVariablesIfStartBuildIsFalse() throws InterruptedException, IOException {
+	   EnvVars envVars = new EnvVars();
+	   envVars.put("host", "abracadabra");
+
+	   HashMap<String, String> options = new HashMap<String, String>();
+	   options.put(FitnesseBuilder.START_FITNESSE, "False");
+	   options.put(FitnesseBuilder.FITNESSE_HOST, "$host");
+	   FitnesseBuilder builder = new FitnesseBuilder(options);
+	   builder.setEnvVars(envVars);
+	   
+      AbstractBuild<?, ?> build = mockBuildWithEnvVars(null);
+	   
+	   Assert.assertFalse(builder.getFitnesseStart());
+	   Assert.assertEquals("abracadabra", builder.getFitnesseHost(build));
+	}
+
 	@Test
 	public void getHttpTimeoutShouldReturn60000UnlessValueIsExplicit() {
 		HashMap<String, String> options = new HashMap<String, String>();
@@ -87,6 +150,19 @@ public class FitnesseBuilderTest {
 		Assert.assertEquals(60000, builder.getFitnesseHttpTimeout());
 		options.put(FitnesseBuilder.HTTP_TIMEOUT, "1000");
 		Assert.assertEquals(1000, builder.getFitnesseHttpTimeout());
+	}
+	
+	@Test
+	public void getHttpTimeoutShouldResolveEnvironmentVariables() {
+	   HashMap<String, String> options = new HashMap<String, String>();
+	   FitnesseBuilder builder = new FitnesseBuilder(options);
+	   EnvVars ev = new EnvVars();
+      ev.put("timeout", "1000");
+      builder.setEnvVars(ev);
+	   Assert.assertEquals(60000, builder.getFitnesseHttpTimeout());
+	   
+	   options.put(FitnesseBuilder.HTTP_TIMEOUT, "$timeout");
+	   Assert.assertEquals(1000, builder.getFitnesseHttpTimeout());
 	}
 	
 	@Test

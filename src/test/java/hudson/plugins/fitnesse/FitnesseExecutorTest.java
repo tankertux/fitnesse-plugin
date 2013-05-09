@@ -2,8 +2,6 @@ package hudson.plugins.fitnesse;
 
 import hudson.EnvVars;
 import hudson.FilePath;
-import org.junit.Assert;
-import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -15,14 +13,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.junit.Assert;
+import org.junit.Test;
+
 public class FitnesseExecutorTest {
 
 	private static final String LINE_SEPARATOR = System.getProperty("line.separator");
-	private static final String TMP_DIR = System.getProperty("java.io.tmpdir");
+	public static final String TMP_DIR = System.getProperty("java.io.tmpdir");
 	
 	private FitnesseExecutor executor;
 
-	private FitnesseExecutor getExecutorForBuilder(String[] keys, String[] values) {
+	static FitnesseExecutor getExecutorForBuilder(String[] keys, String[] values) {
 		Map<String, String> options = new HashMap<String, String>();
 		for (int i=0; i < keys.length; ++i) {
 			options.put(keys[i], values[i]);
@@ -30,9 +31,11 @@ public class FitnesseExecutorTest {
 		return new FitnesseExecutor(new FitnesseBuilder(options));
 	}
 
+	 // Test for generation of Fitnesse specific Java command depends on Hudson, and is in Hudson Dependent Tests
+	
 	@Test
 	public void javaCmdShouldIncludeJarAndDirAndRootAndPort() throws IOException {
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.JAVA_OPTS, FitnesseBuilder.PATH_TO_ROOT, 
 						FitnesseBuilder.PATH_TO_JAR, FitnesseBuilder.FITNESSE_PORT},
 				new String[] {"", getTestResourceFitNesseRoot(), 
@@ -50,20 +53,20 @@ public class FitnesseExecutorTest {
 		Assert.assertEquals("-p", cmd.get(7));
 		Assert.assertEquals("9999", cmd.get(8));
 	}
-
-	private static String getTestResourceFitnesseJar() {
+	
+	static String getTestResourceFitnesseJar() {
 		return new File(new File(System.getProperty("user.dir")), 
 				"target/test-classes/fitnesse.jar").getAbsolutePath();
 	}
 	
-	private static String getTestResourceFitNesseRoot() {
+	static String getTestResourceFitNesseRoot() {
 		return new File(new File(System.getProperty("user.dir")), 
 		"target/test-classes/FitNesseRoot").getAbsolutePath();
 	}
 
 	@Test
 	public void javaCmdShouldIncludeJavaOpts() throws IOException {
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.JAVA_OPTS, FitnesseBuilder.PATH_TO_ROOT, 
 							FitnesseBuilder.PATH_TO_JAR, FitnesseBuilder.FITNESSE_PORT},
 				new String[] {"-Da=b", getTestResourceFitNesseRoot(), 
@@ -87,7 +90,7 @@ public class FitnesseExecutorTest {
 	@Test
 	public void javaCmdShouldReferenceJAVAHOME() throws IOException {
 		File javaHome = File.createTempFile("JavaHome", "");
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.PATH_TO_ROOT, FitnesseBuilder.PATH_TO_JAR, FitnesseBuilder.FITNESSE_PORT},
 				new String[] {getTestResourceFitNesseRoot(), getTestResourceFitnesseJar(), "9876"});
 		
@@ -109,31 +112,8 @@ public class FitnesseExecutorTest {
 	}
 	
 	@Test
-	public void javaCmdShouldReferenceFitnesseSpecificJavaHome() throws IOException {
-	   File javaHome = File.createTempFile("JavaHome", "");
-	   executor = getExecutorForBuilder(
-	                                    new String[] {FitnesseBuilder.PATH_TO_ROOT, FitnesseBuilder.PATH_TO_JAR, FitnesseBuilder.FITNESSE_PORT, FitnesseBuilder.FITNESSE_JDK},
-	                                    new String[] {getTestResourceFitNesseRoot(), getTestResourceFitnesseJar(), "9876", javaHome.getAbsolutePath()});
-	   
-	   EnvVars envVars = new EnvVars();
-	   FilePath workingDirectory = new FilePath(new File(TMP_DIR));
-	   ArrayList<String> cmd = executor.getJavaCmd(workingDirectory, envVars);
-	   
-	   Assert.assertEquals(new File(new File(javaHome, "bin"), "java").getAbsolutePath(), 
-	                       cmd.get(0));
-	   Assert.assertEquals("-jar", cmd.get(1));
-	   Assert.assertEquals(getTestResourceFitnesseJar(), cmd.get(2));
-	   Assert.assertEquals("-d", cmd.get(3));
-	   Assert.assertEquals(new File(getTestResourceFitNesseRoot()).getParent(), cmd.get(4));
-	   Assert.assertEquals("-r", cmd.get(5));
-	   Assert.assertEquals("FitNesseRoot", cmd.get(6));
-	   Assert.assertEquals("-p", cmd.get(7));
-	   Assert.assertEquals("9876", cmd.get(8));
-	}
-
-	@Test
 	public void javaCmdShouldHandleRelativePaths() throws IOException {
-		FitnesseExecutor executor = getExecutorForBuilder(
+		FitnesseExecutor executor = FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.PATH_TO_ROOT, FitnesseBuilder.PATH_TO_JAR, FitnesseBuilder.FITNESSE_PORT},
 				new String[] {"FitNesseRoot", "fitnesse.jar", "9000"});
 		
@@ -154,7 +134,7 @@ public class FitnesseExecutorTest {
 
 	@Test
 	public void fitnessePageCmdShouldBeTestIfPageIsNotSuite() {
-		executor = getExecutorForBuilder(
+		executor =FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.TARGET_PAGE, FitnesseBuilder.TARGET_IS_SUITE},
 				new String[] {"WikiPage", "false"});
 		Assert.assertEquals("/WikiPage?test&format=xml&includehtml", 
@@ -163,7 +143,7 @@ public class FitnesseExecutorTest {
 
 	@Test
 	public void fitnessePageCmdShouldBeSuiteIfPageIsSuite() {
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 			new String[] {FitnesseBuilder.TARGET_PAGE, FitnesseBuilder.TARGET_IS_SUITE},
 			new String[] {"WikiPage", "true"});
 		Assert.assertEquals("/WikiPage?suite&format=xml&includehtml", 
@@ -172,12 +152,12 @@ public class FitnesseExecutorTest {
 	
 	@Test
 	public void fitnessePageCmdShouldReorderQueryStringIfSpecifiedInPageName() {
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.TARGET_PAGE, FitnesseBuilder.TARGET_IS_SUITE},
 				new String[] {"WikiPage?suite&suiteFilter=tag1,tag2", "true"});
 		Assert.assertEquals("/WikiPage?suite&suiteFilter=tag1,tag2&format=xml&includehtml", 
 				executor.getFitnessePageCmd());
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.TARGET_PAGE, FitnesseBuilder.TARGET_IS_SUITE},
 				new String[] {"WikiPage&suiteFilter=tag1,tag2", "true"});
 		Assert.assertEquals("/WikiPage?suite&suiteFilter=tag1,tag2&format=xml&includehtml", 
@@ -186,7 +166,7 @@ public class FitnesseExecutorTest {
 	
 	@Test
 	public void fitnessePageCmdURLShouldIncludeHostPortAndPageCmd() throws MalformedURLException {
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 				new String[] {FitnesseBuilder.FITNESSE_HOST, FitnesseBuilder.FITNESSE_PORT, FitnesseBuilder.TARGET_PAGE, FitnesseBuilder.TARGET_IS_SUITE},
 				new String[] {"host", "1234", "WikiPage", "true"});
 //		Assert.assertEquals("http://host:1234" + executor.getFitnessePageCmd(),
@@ -195,7 +175,7 @@ public class FitnesseExecutorTest {
 
 	@Test
 	public void fitnessePageCmdURLShouldIncludeLocalHostIfStartedByHudson() throws MalformedURLException {
-		executor = getExecutorForBuilder(
+		executor = FitnesseExecutorTest.getExecutorForBuilder(
 			new String[] {FitnesseBuilder.START_FITNESSE, FitnesseBuilder.FITNESSE_HOST, FitnesseBuilder.FITNESSE_PORT, FitnesseBuilder.TARGET_PAGE, FitnesseBuilder.TARGET_IS_SUITE},
 			new String[] {"true", "unknown_host", "8989", "WikiPage", "true"});
 //		Assert.assertEquals("http://localhost:8989" + executor.getFitnessePageCmd(),
@@ -204,7 +184,7 @@ public class FitnesseExecutorTest {
 	
 	@Test
 	public void fitnesseStartedShouldBeTrueIfStdOutHasBeenWrittenTo() throws Exception {
-		executor = getExecutorForBuilder(new String[] {}, new String[] {});
+		executor = FitnesseExecutorTest.getExecutorForBuilder(new String[] {}, new String[] {});
 		ByteArrayOutputStream stdout = new ByteArrayOutputStream();
 		ByteArrayOutputStream log = new ByteArrayOutputStream();
 		stdout.write("Started".getBytes());
@@ -220,7 +200,7 @@ public class FitnesseExecutorTest {
 
 	@Test
 	public void fitnesseStartedShouldBeFalseAfterTimeoutIfStdOutHasNotBeenWrittenTo() throws Exception {
-		executor = getExecutorForBuilder(new String[] {}, new String[] {});
+		executor = FitnesseExecutorTest.getExecutorForBuilder(new String[] {}, new String[] {});
 		ByteArrayOutputStream stdout = new ByteArrayOutputStream();
 		Assert.assertFalse(executor.fitnesseStarted(new PrintStream(stdout), 
 				new StdConsole(stdout, new ByteArrayOutputStream()), 500));
@@ -231,7 +211,7 @@ public class FitnesseExecutorTest {
 
 	@Test
 	public void getHttpBytesShouldReturnContentFromUrlWriteToLogAndCallReset() throws Exception {
-		executor = getExecutorForBuilder(new String[] {}, new String[] {});
+		executor = FitnesseExecutorTest.getExecutorForBuilder(new String[] {}, new String[] {});
 		ByteArrayOutputStream logBucket = new ByteArrayOutputStream();
 		resetWasCalled = false;
 		Resettable resettable = new Resettable() {
